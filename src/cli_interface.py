@@ -1,44 +1,34 @@
 import cmd
 from src.database import Neo4jConnection
-from src.query_builder import CypherQueryBuilder
 
 
 class KnowledgeCLI(cmd.Cmd):
-    """交互式命令行界面"""
-
-    prompt = "\n(知识图谱) > "
-    intro = "欢迎使用智能数据工程知识问答系统！输入 help 查看命令列表"
+    prompt = "(知识图谱) > "
+    intro = "欢迎使用智能数据工程问答系统！输入 'exit' 或 'quit' 退出。"
 
     def __init__(self):
         super().__init__()
-        self.conn = Neo4jConnection()
-        self.current_page = 1
+        self.qa = Neo4jConnection()
 
-    def do_search(self, arg):
-        """执行搜索: search <关键词> [--page 页码]"""
-        # 解析参数
-        args = arg.split()
-        keyword = args[0]
-        page = 1
-        if "--page" in args:
-            page_index = args.index("--page")
-            page = int(args[page_index + 1])
+    def default(self, line):
+        """处理用户输入的问题"""
+        if line.lower() in ("exit", "quit"):
+            return self.do_exit(line)
+        if line.startswith("feedback:"):
+            feedback = line.split(":", 1)[1].strip()
+            self.handle_feedback(feedback)
+        else:
+            answer = self.qa.search_knowledge(line)
+            print(f"\n答案：\n{answer}")
 
-        # 构建查询
-        query = CypherQueryBuilder.build_query(
-            "basic_search",
-            {"label": "Course", "limit": 10}
-        )
-        results = self.conn.execute_query(query, keyword=keyword)
-
-        # 分页显示
-        self._display_results(results, page)
-
-    def _display_results(self, results: list, page: int):
-        # 实现分页逻辑
-        pass
+    def handle_feedback(self, feedback):
+        """处理用户反馈"""
+        if "差" in feedback:
+            print("用户反馈消极，考虑优化问答策略。")
+        elif "不错" in feedback:
+            print("用户反馈积极，继续保持当前策略。")
+        else:
+            print("中立反馈，继续观察。")
 
     def do_exit(self, arg):
-        """退出系统: exit"""
-        print("感谢使用！")
         return True
